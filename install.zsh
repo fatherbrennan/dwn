@@ -4,8 +4,8 @@ source ./common.zsh
 
 INSTALLER_LOG=install
 
-# Set permissions of script files in bin directory.
-# Important because cp will preserve permissions later.
+# set permissions of script files in bin directory.
+# important because cp will preserve permissions later.
 function set_bin_dir_permissions() {
   INSTALLER_STEP=permissions
 
@@ -13,24 +13,23 @@ function set_bin_dir_permissions() {
   log "dwn permissions set!"
 }
 
-# Add environment variables to zsh.
-# Case handlers:
-# - No ~/.zshrc file.
-# - Env variables already exist.
+# add environment variables to zsh.
+# case handlers:
+# - oo ~/.zshrc file.
+# - env variables already exist.
 function set_env_vars() {
   INSTALLER_STEP=env_vars
-  local ENV_VARIABLES_TEXT='\n# dwn\nexport DWN_INSTALL="$HOME/.dwn"\nexport PATH="$DWN_INSTALL/bin:$PATH"'
 
-  # Check if the file exists.
+  # check if the file exists.
   if [[ -f "$FILE_ZSHRC" ]]; then
-    # Append text if not in file.
+    # append text if not in file.
     if ! grep -qzo "$ENV_VARIABLES_TEXT" "$FILE_ZSHRC"; then
       echo "$ENV_VARIABLES_TEXT" >>"$FILE_ZSHRC" || log_error_exit $ERROR_ENV_VARS_APPEND
     else
       log "environment variables already exist!"
     fi
   else
-    # Create file with text.
+    # create file with text.
     echo "$ENV_VARIABLES_TEXT" >"$FILE_ZSHRC" || log_error_exit $ERROR_ENV_VARS_WRITE
     log "environment variables added!"
   fi
@@ -42,10 +41,10 @@ function set_config_dir() {
   local version_pattern="^[0-9]+\.[0-9]+\.[0-9]+$"
   local version=""
 
-  # Check if the directory exists.
+  # check if the directory exists.
   if [[ -d "$DWN_INSTALL" ]]; then
     # echo "Directory exists"
-    # # Check version file.
+    # # check version file.
     # if [[ -f $version_file ]]; then
     #   echo "Version file exists"
     #   version=$(head -n 1 "$version_file")
@@ -62,7 +61,7 @@ function set_config_dir() {
     # fi
     log 'unsupported operation for now' && exit 0
   else
-    # Fresh install.
+    # fresh install.
     DWN_VERSION=$INSTALLER_DWN_VERSION
     mkdir -p -m 755 $DWN_INSTALL
     cp -Rp ./bin $DWN_INSTALL
