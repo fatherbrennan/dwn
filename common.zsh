@@ -20,6 +20,7 @@ ERROR_PERMISSIONS_BIN_DIR=010
 ERROR_ENV_VARS_APPEND=020
 ERROR_ENV_VARS_WRITE=021
 ERROR_ENV_VARS_REMOVE=022
+ERROR_ENV_VARS_SOURCE=023
 ERROR_REMOVE_CONFIG_DIR=030
 
 # error code messages.
@@ -29,6 +30,7 @@ ERROR[$ERROR_SYSTEM_OS_UNSUPPORTED]="unsupported operating system: $SYSTEM_OS"
 ERROR[$ERROR_ENV_VARS_APPEND]="cannot append environment variables to ~/.zshrc"
 ERROR[$ERROR_ENV_VARS_WRITE]="cannot write environment variables to ~/.zshrc"
 ERROR[$ERROR_ENV_VARS_REMOVE]="error removing environment variables from ~/.zshrc"
+ERROR[$ERROR_ENV_VARS_SOURCE]="error sourcing environment variables from ~/.zshrc"
 ERROR[$ERROR_PERMISSIONS_BIN_DIR]="error setting permissions of bin directory"
 ERROR[$ERROR_REMOVE_CONFIG_DIR]="error removing dwn config directory"
 
@@ -48,6 +50,22 @@ function log_warn() {
 # $1 log message.
 function log() {
   echo "[$INSTALLER_LOG] $INSTALLER_STEP\t$1"
+}
+
+# return expected result of bool function.
+# ```zsh
+# is_true=1
+# is_false=0
+# bool $is_true && echo true || echo false # true
+# bool $is_false && echo true || echo false # false
+# ```
+# $1 `0` (`false`) or `1` (`true`).
+function bool() {
+  if [[ $1 -eq 1 ]]; then
+    return 0
+  else
+    return 1
+  fi
 }
 
 # set the operating system.

@@ -4,6 +4,8 @@ source ./common.zsh
 
 INSTALLER_LOG=install
 
+is_fresh_install=0
+
 # set permissions of script files in bin directory.
 # important because cp will preserve permissions later.
 function set_bin_dir_permissions() {
@@ -33,20 +35,32 @@ function set_env_vars() {
     echo "$ENV_VARIABLES_TEXT" >"$FILE_ZSHRC" || log_error_exit $ERROR_ENV_VARS_WRITE
     log "environment variables added!"
   fi
+
+  # make sure to make new variables available.
+  source "$FILE_ZSHRC" || log_error_exit $ERROR_ENV_VARS_REMOVE
 }
 
 # create dwn config directory.
 function set_config_dir() {
   INSTALLER_STEP=config_dir
-  local version_file="$DWN_INSTALL/$FILE_DWN_VERSION"
-  local version_pattern="^[0-9]+\.[0-9]+\.[0-9]+$"
-  local version=""
+
+  if [[ ! -d "$DWN_INSTALL" ]]; then
+    is_fresh_install=1
+  fi
 
   # check if the directory exists.
-  if [[ -d "$DWN_INSTALL" ]]; then
+  if bool $is_fresh_install; then
+    DWN_VERSION=$INSTALLER_DWN_VERSION
+    mkdir -p -m 755 $DWN_INSTALL
+    cp -Rp ./bin $DWN_INSTALL
+    log "created: $DWN_INSTALL"
+  else
     # echo "Directory exists"
     # # check version file.
     # if [[ -f $version_file ]]; then
+    # local version_file="$DWN_INSTALL/$FILE_DWN_VERSION"
+    # local version_pattern="^[0-9]+\.[0-9]+\.[0-9]+$"
+    # local version=""
     #   echo "Version file exists"
     #   version=$(head -n 1 "$version_file")
     #   if [[ "$version" =~ $version_pattern ]]; then
@@ -60,13 +74,7 @@ function set_config_dir() {
     # else
     #   echo "Version file does not exist"
     # fi
-    log 'unsupported operation for now' && exit 0
-  else
-    # fresh install.
-    DWN_VERSION=$INSTALLER_DWN_VERSION
-    mkdir -p -m 755 $DWN_INSTALL
-    cp -Rp ./bin $DWN_INSTALL
-    log "created at $DWN_INSTALL"
+    # log 'unsupported operation for now' && exit 0
   fi
 }
 
