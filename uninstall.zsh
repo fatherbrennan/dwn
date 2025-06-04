@@ -4,6 +4,17 @@ source ./common.zsh
 
 INSTALLER_LOG=uninstall
 
+# remove dwn config directory.
+function unset_config_dir() {
+  INSTALLER_STEP=remove_config_dir
+
+  # check if the directory exists.
+  if [[ -d "$DWN_INSTALL" ]]; then
+    # remove the entire directory.
+    rm -rf "$DWN_INSTALL" && log "removed $DWN_INSTALL" || log_error_exit $ERROR_REMOVE_CONFIG_DIR
+  fi
+}
+
 # unset environment variables from zsh.
 function unset_env_vars() {
   INSTALLER_STEP=unset_env_vars
@@ -22,4 +33,5 @@ function unset_env_vars() {
   log "environment variables unset!"
 }
 
+unset_config_dir
 unset_env_vars
