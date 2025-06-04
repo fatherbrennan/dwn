@@ -21,23 +21,24 @@ function set_bin_dir_permissions() {
 # - env variables already exist.
 function set_env_vars() {
   INSTALLER_STEP=env_vars
+  local env_vars_text="\n$ENV_VARIABLES_TEXT"
 
   # check if the file exists.
   if [[ -f "$FILE_ZSHRC" ]]; then
     # append text if not in file.
     if ! grep -qzo "$ENV_VARIABLES_TEXT" "$FILE_ZSHRC"; then
-      echo "$ENV_VARIABLES_TEXT" >>"$FILE_ZSHRC" || log_error_exit $ERROR_ENV_VARS_APPEND
+      echo "$env_vars_text" >>"$FILE_ZSHRC" || log_error_exit $ERROR_ENV_VARS_APPEND
     else
       log "environment variables already exist!"
     fi
   else
     # create file with text.
-    echo "$ENV_VARIABLES_TEXT" >"$FILE_ZSHRC" || log_error_exit $ERROR_ENV_VARS_WRITE
+    echo "$env_vars_text" >"$FILE_ZSHRC" || log_error_exit $ERROR_ENV_VARS_WRITE
     log "environment variables added!"
   fi
 
   # make sure to make new variables available.
-  source "$FILE_ZSHRC" || log_error_exit $ERROR_ENV_VARS_REMOVE
+  source "$FILE_ZSHRC" || log_error_exit $ERROR_ENV_VARS_SOURCE
 }
 
 # create dwn config directory.
