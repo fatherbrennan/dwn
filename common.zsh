@@ -20,6 +20,7 @@ ERROR_PERMISSIONS_BIN_DIR=010
 ERROR_ENV_VARS_APPEND=020
 ERROR_ENV_VARS_WRITE=021
 ERROR_ENV_VARS_REMOVE=022
+ERROR_REMOVE_CONFIG_DIR=030
 
 # Error code messages.
 typeset -A ERROR=()
@@ -29,6 +30,7 @@ ERROR[$ERROR_ENV_VARS_APPEND]="cannot append environment variables to ~/.zshrc"
 ERROR[$ERROR_ENV_VARS_WRITE]="cannot write environment variables to ~/.zshrc"
 ERROR[$ERROR_ENV_VARS_REMOVE]="error removing environment variables from ~/.zshrc"
 ERROR[$ERROR_PERMISSIONS_BIN_DIR]="error setting permissions of bin directory"
+ERROR[$ERROR_REMOVE_CONFIG_DIR]="error removing dwn config directory"
 
 # Print error code and message, and exit with non-zero code.
 # $1 ERROR code.
