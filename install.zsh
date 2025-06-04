@@ -35,6 +35,7 @@ function set_env_vars() {
   fi
 }
 
+# create dwn config directory.
 function set_config_dir() {
   INSTALLER_STEP=config_dir
   local version_file="$DWN_INSTALL/$FILE_DWN_VERSION"
