@@ -1,65 +1,8 @@
 #!/bin/zsh
 
-OS=macos # macos | linux | windows
-DWN_VERSION=
+source ./common.zsh
+
 INSTALLER_LOG=install
-INSTALLER_STEP=step
-
-FILE_ZSHRC="$HOME/.zshrc"
-FILE_DWN_VERSION="bin/version"
-
-INSTALLER_DWN_VERSION=$(head -n 1 "./$FILE_DWN_VERSION") # Format: 0.0.0
-
-# Error codes.
-ERROR_OS_UNKNOWN=001
-ERROR_OS_UNSUPPORTED=002
-ERROR_PERMISSIONS_BIN_DIR=010
-ERROR_ENV_VARS_APPEND=020
-ERROR_ENV_VARS_WRITE=021
-
-# Error code messages.
-typeset -A ERROR=()
-ERROR[$ERROR_OS_UNKNOWN]="unknown operating system: $OSTYPE"
-ERROR[$ERROR_OS_UNSUPPORTED]="unsupported operating system: $OS"
-ERROR[$ERROR_ENV_VARS_APPEND]="cannot append environment variables to ~/.zshrc"
-ERROR[$ERROR_ENV_VARS_WRITE]="cannot write environment variables to ~/.zshrc"
-ERROR[$ERROR_PERMISSIONS_BIN_DIR]="error setting permissions of bin directory"
-
-# Print error code and message, and exit with non-zero code.
-# $1 ERROR code.
-function log_error_exit() {
-  echo "[$INSTALLER_LOG] $INSTALLER_STEP [ERROR:$1]:\t$ERROR[$1]" && exit 1
-}
-
-# Print warning log message.
-# $1 warning message.
-function log_warn() {
-  echo "[$INSTALLER_LOG] $INSTALLER_STEP [WARN]:\t$1"
-}
-
-# Print log message.
-# $1 log message.
-function log() {
-  echo "[$INSTALLER_LOG] $INSTALLER_STEP\t$1"
-}
-
-# Set the operating system.
-# Error if not supported.
-function set_os() {
-  INSTALLER_STEP=os_check
-
-  if [[ "$OSTYPE" == "darwin"* ]]; then
-    OS=macos
-  elif [[ "$OSTYPE" == "linux"* ]]; then
-    OS=linux
-  elif [[ "$OSTYPE" == "cygwin" || "$OSTYPE" == "msys" || "$OSTYPE" == "win32" ]]; then
-    OS=windows
-    log_error_exit $ERROR_OS_UNSUPPORTED
-  else
-    log_error_exit $ERROR_OS_UNKNOWN
-  fi
-  log "$OS"
-}
 
 # Set permissions of script files in bin directory.
 # Important because cp will preserve permissions later.
