@@ -13,7 +13,7 @@ FILE_DWN_VERSION="bin/version"
 
 INSTALLER_DWN_VERSION=$(head -n 1 "./$FILE_DWN_VERSION") # Format: 0.0.0
 
-# Error codes.
+# error codes.
 ERROR_SYSTEM_OS_UNKNOWN=001
 ERROR_SYSTEM_OS_UNSUPPORTED=002
 ERROR_PERMISSIONS_BIN_DIR=010
@@ -22,7 +22,7 @@ ERROR_ENV_VARS_WRITE=021
 ERROR_ENV_VARS_REMOVE=022
 ERROR_REMOVE_CONFIG_DIR=030
 
-# Error code messages.
+# error code messages.
 typeset -A ERROR=()
 ERROR[$ERROR_SYSTEM_OS_UNKNOWN]="unknown operating system: $OSTYPE"
 ERROR[$ERROR_SYSTEM_OS_UNSUPPORTED]="unsupported operating system: $SYSTEM_OS"
@@ -32,26 +32,26 @@ ERROR[$ERROR_ENV_VARS_REMOVE]="error removing environment variables from ~/.zshr
 ERROR[$ERROR_PERMISSIONS_BIN_DIR]="error setting permissions of bin directory"
 ERROR[$ERROR_REMOVE_CONFIG_DIR]="error removing dwn config directory"
 
-# Print error code and message, and exit with non-zero code.
+# print error code and message, and exit with non-zero code.
 # $1 ERROR code.
 function log_error_exit() {
   echo "[$INSTALLER_LOG] $INSTALLER_STEP [ERROR:$1]:\t$ERROR[$1]" && exit 1
 }
 
-# Print warning log message.
+# print warning log message.
 # $1 warning message.
 function log_warn() {
   echo "[$INSTALLER_LOG] $INSTALLER_STEP [WARN]:\t$1"
 }
 
-# Print log message.
+# print log message.
 # $1 log message.
 function log() {
   echo "[$INSTALLER_LOG] $INSTALLER_STEP\t$1"
 }
 
-# Set the operating system.
-# Error if not supported.
+# set the operating system.
+# error if not supported.
 function set_os() {
   INSTALLER_STEP=os_check
 
