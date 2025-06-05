@@ -30,7 +30,7 @@ function unset_env_vars() {
     _tmp_f_env_vars=$(mktemp)
     _tmp_f_zshrc=$(mktemp)
 
-    echo "$ENV_VARIABLES_TEXT" >"$_tmp_f_env_vars"
+    pl "$ENV_VARIABLES_TEXT" >"$_tmp_f_env_vars"
 
     # remove environment variables from file.
     grep -xvFf "$_tmp_f_env_vars" "$FILE_ZSHRC" >"$_tmp_f_zshrc" && mv "$_tmp_f_zshrc" "$FILE_ZSHRC"
