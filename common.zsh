@@ -35,34 +35,34 @@ ERROR[$ERROR_ENV_VARS_SOURCE]="error sourcing environment variables from ~/.zshr
 ERROR[$ERROR_CONFIG_DIR_REMOVE]="error removing dwn config directory"
 
 # print line.
-function pl() {
+function print_ln() {
   printf "$1\n"
 }
 
 # print error code and message, and exit with non-zero code.
 # $1 ERROR code.
 function log_error_exit() {
-  pl "[$INSTALLER_LOG] $INSTALLER_STEP [ERROR:$1]:\t$ERROR[$1]" && exit 1
+  print_ln "[$INSTALLER_LOG] $INSTALLER_STEP [ERROR:$1]:\t$ERROR[$1]" && exit 1
 }
 
 # print warning log message.
 # $1 warning message.
 function log_warn() {
-  pl "[$INSTALLER_LOG] $INSTALLER_STEP [WARN]:\t$1"
+  print_ln "[$INSTALLER_LOG] $INSTALLER_STEP [WARN]:\t$1"
 }
 
 # print log message.
 # $1 log message.
 function log() {
-  pl "[$INSTALLER_LOG] $INSTALLER_STEP\t$1"
+  print_ln "[$INSTALLER_LOG] $INSTALLER_STEP\t$1"
 }
 
 # return expected result of bool function.
 # ```zsh
 # is_true=1
 # is_false=0
-# bool $is_true && pl true || pl false # true
-# bool $is_false && pl true || pl false # false
+# bool $is_true && print_ln true || print_ln false # true
+# bool $is_false && print_ln true || print_ln false # false
 # ```
 # $1 `0` (`false`) or `1` (`true`).
 function bool() {
