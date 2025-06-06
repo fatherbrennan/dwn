@@ -11,7 +11,7 @@ DIR_TEMP="$(mktemp -d)"
 FILE_ZSHRC="$HOME/.zshrc"
 FILE_DWN_VERSION="bin/version"
 
-INSTALLER_DWN_VERSION=$(head -n 1 "./$FILE_DWN_VERSION") # Format: 0.0.0
+INSTALLER_DWN_VERSION=$(head -n 1 "./$FILE_DWN_VERSION") # format: 0.0.0
 
 # error codes.
 ERROR_SYSTEM_OS_UNKNOWN=001
@@ -26,7 +26,7 @@ ERROR_CONFIG_DIR_REMOVE=030
 # error code messages.
 typeset -A ERROR=()
 ERROR[$ERROR_SYSTEM_OS_UNKNOWN]="unknown operating system: $OSTYPE"
-ERROR[$ERROR_SYSTEM_OS_UNSUPPORTED]="unsupported operating system: $SYSTEM_OS"
+ERROR[$ERROR_SYSTEM_OS_UNSUPPORTED]="unsupported operating system: $OSTYPE"
 ERROR[$ERROR_PERMISSIONS_BIN_DIR]="error setting permissions of bin directory"
 ERROR[$ERROR_ENV_VARS_APPEND]="cannot append environment variables to ~/.zshrc"
 ERROR[$ERROR_ENV_VARS_WRITE]="cannot write environment variables to ~/.zshrc"
