@@ -1,0 +1,283 @@
+#!/bin/zsh
+
+SYSTEM_OS=macos                                     # macos | linux | windows
+DWN_VERSION=$(head -n 1 "$DWN_INSTALL/bin/version") # format: 0.0.0
+DWN_CMD=dwn                                         # dwn | continue | list | remove
+
+DIR_TEMP="$(mktemp -d)"
+DIR_LIST="$DWN_INSTALL/bin/list"
+
+FILE_ZSHRC="$HOME/.zshrc"
+
+has_output_file=0
+dwn_url=
+dwn_output_file=
+
+# error codes.
+ERROR_SYSTEM_OS_UNKNOWN=001
+ERROR_SYSTEM_OS_UNSUPPORTED=002
+ERROR_OPTION_INVALID_CMD=010
+ERROR_RUN_COMMAND_UNKNOWN=020
+ERROR_DWN_OUTPUT_FILE_EXISTS=030
+ERROR_DWN_OUTPUT_FILE_INVALID=030
+
+# error code messages.
+typeset -A ERROR=()
+ERROR[$ERROR_SYSTEM_OS_UNKNOWN]="unknown operating system: $OSTYPE"
+ERROR[$ERROR_SYSTEM_OS_UNSUPPORTED]="unsupported operating system: $OSTYPE"
+ERROR[$ERROR_OPTION_INVALID_CMD]="$DWN_CMD command does not support passed option, for more information use\n\n    dwn usage\n"
+ERROR[$ERROR_RUN_COMMAND_UNKNOWN]="i have no idea how you got here, but i'm not going to let you do that"
+ERROR[$ERROR_DWN_OUTPUT_FILE_EXISTS]="output file already exists"
+ERROR[$ERROR_DWN_OUTPUT_FILE_INVALID]="you can't put that there"
+
+# print line.
+function print_ln() {
+  printf '%s\n' "$1"
+}
+
+# print error code and message, and exit with non-zero code.
+# $1 ERROR code.
+function log_error_exit() {
+  printf '[ERROR:%s]:\t%b\n' "$1" "$ERROR[$1]" && exit 1
+}
+
+# print warning log message.
+# $1 warning message.
+function log_warn() {
+  printf '[WARN]:\t%b\n' "$1"
+}
+
+# print log message.
+# $1 log message.
+function log() {
+  printf '%b\n' "$1"
+}
+
+# return expected result of bool function.
+# ```zsh
+# is_true=1
+# is_false=0
+# bool $is_true && print_ln true || print_ln false # true
+# bool $is_false && print_ln true || print_ln false # false
+# ```
+# $1 `0` (`false`) or `1` (`true`).
+function bool() {
+  if [[ $1 -eq 1 ]]; then
+    return 0
+  else
+    return 1
+  fi
+}
+
+# set the operating system.
+# error if not supported.
+function set_os() {
+  if [[ "$OSTYPE" == "darwin"* ]]; then
+    SYSTEM_OS=macos
+  elif [[ "$OSTYPE" == "linux"* ]]; then
+    SYSTEM_OS=linux
+  elif [[ "$OSTYPE" == "cygwin" || "$OSTYPE" == "msys" || "$OSTYPE" == "win32" ]]; then
+    SYSTEM_OS=windows
+    log_error_exit $ERROR_SYSTEM_OS_UNSUPPORTED
+  else
+    log_error_exit $ERROR_SYSTEM_OS_UNKNOWN
+  fi
+  log "$SYSTEM_OS"
+}
+
+# return 0 if file exists, 1 if not.
+# $1 file path.
+function file_exists() {
+  if [[ -f "$1" ]]; then
+    return 0
+  else
+    return 1
+  fi
+}
+
+# todo: this needs to be updated, simple placeholder for now.
+# print usage and exit gracefully.
+function print_usage_exit() {
+  print_ln 'usage: dwn [options] [arguments]' && exit 0
+}
+
+# print the version and exit gracefully.
+function print_version_exit() {
+  print_ln "$DWN_VERSION" && exit 0
+}
+
+# print usage and exit if no arguments specified.
+if [[ "$#" -eq 0 ]]; then
+  print_usage_exit
+fi
+
+# ensure list directory exists.
+if [[ ! -d "$DIR_LIST" ]]; then
+  mkdir "$DIR_LIST"
+fi
+
+# parse commands and long options manually.
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+  version | --version)
+    [[ "$DWN_CMD" != "dwn" ]] && log_error_exit $ERROR_OPTION_INVALID_CMD
+    print_version_exit
+    ;;
+  usage | help | --help)
+    [[ "$DWN_CMD" != "dwn" ]] && log_error_exit $ERROR_OPTION_INVALID_CMD
+    print_usage_exit
+    ;;
+  continue)
+    log 'continue'
+    DWN_CMD=continue
+    shift
+    ;;
+  ls | list)
+    log 'list'
+    DWN_CMD=list
+    shift
+    ;;
+  rm | remove)
+    log 'remove'
+    DWN_CMD=remove
+    shift
+    ;;
+  *)
+    break
+    ;;
+  esac
+done
+
+# parse command-line options with getopts.
+while getopts "vho:aifc" opt; do
+  case $opt in
+  v)
+    [[ "$DWN_CMD" != "dwn" ]] && log_error_exit $ERROR_OPTION_INVALID_CMD
+    print_version_exit
+    ;;
+  h)
+    [[ "$DWN_CMD" != "dwn" ]] && log_error_exit $ERROR_OPTION_INVALID_CMD
+    print_usage_exit
+    ;;
+  o)
+    [[ "$DWN_CMD" != "dwn" ]] && log_error_exit $ERROR_OPTION_INVALID_CMD
+    has_output_file=1
+    dwn_output_file="$OPTARG"
+    ;;
+  a)
+    [[ "$DWN_CMD" != "remove" ]] && log_error_exit $ERROR_OPTION_INVALID_CMD
+    ;;
+  c)
+    [[ "$DWN_CMD" != "list" && "$DWN_CMD" != "remove" ]] && log_error_exit $ERROR_OPTION_INVALID_CMD
+    ;;
+  i)
+    [[ "$DWN_CMD" != "list" && "$DWN_CMD" != "remove" ]] && log_error_exit $ERROR_OPTION_INVALID_CMD
+    ;;
+  f)
+    [[ "$DWN_CMD" != "remove" ]] && log_error_exit $ERROR_OPTION_INVALID_CMD
+    ;;
+  \?)
+    print_usage_exit
+    ;;
+  esac
+done
+
+# remove parsed options and arguments.
+shift $((OPTIND - 1))
+
+function generate_id() {
+  openssl rand -hex 4
+}
+
+# $1 id.
+function get_list_item_url() {
+  head -n 1 "$DIR_LIST/$1"
+}
+
+# $1 id.
+function get_list_item_output_file() {
+  head -n 2 "$DIR_LIST/$1" | tail -n 1
+}
+
+# $1 id.
+# $2 url.
+# $3 absolute path of output file.
+function create_list_item() {
+  log "[$1]: create"
+  printf '%s\n%s' "$2" "$3" >"$DIR_LIST/$1"
+}
+
+# $1 id.
+function remove_list_item() {
+  log "[$1]: remove"
+  rm -f "$DIR_LIST/$1"
+}
+
+# $1 id.
+function download_list_item() {
+  log "[$1]: download"
+  url=$(get_list_item_url "$1")
+  output_file=$(get_list_item_output_file "$1")
+  wget -c -O "$dwn_output_file" "$dwn_url"
+}
+
+function run_dwn() {
+  if bool $has_output_file; then
+    # check if the output file exists.
+    [[ -f "$dwn_output_file" ]] && log_error_exit $ERROR_DWN_OUTPUT_FILE_EXISTS
+    # check if the output file can be created.
+    [[ ! -e "$dwn_output_file" && -w "$(dirname "$dwn_output_file")" ]] || log_error_exit $ERROR_DWN_OUTPUT_FILE_INVALID
+    # get absolute path of output file.
+    dwn_output_file=${dwn_output_file:P}
+  else
+    # use the basename of the url as the output file.
+    dwn_output_file="$(basename "$dwn_url")"
+    dwn_output_file=${dwn_output_file:P}
+  fi
+
+  id=$(generate_id)
+
+  # create unique id.
+  while file_exists "$DIR_LIST/$id"; do
+    id=$(generate_id)
+  done
+
+  create_list_item "$id" "$dwn_url" "$dwn_output_file"
+  download_list_item "$id"
+}
+
+function run_continue() {
+  log 'command: continue'
+}
+
+function run_list() {
+  log 'command: list'
+}
+
+function run_remove() {
+  log 'command: remove'
+}
+
+# run command.
+case "$DWN_CMD" in
+dwn)
+  dwn_url="$1"
+  run_dwn
+  ;;
+continue)
+  run_continue
+  ;;
+list)
+  run_list
+  ;;
+remove)
+  run_remove
+  ;;
+*)
+  log_error_exit $ERROR_RUN_COMMAND_UNKNOWN
+  break
+  ;;
+esac
+
+# remove temp directory on exit.
+trap 'rm -rf -- "$DIR_TEMP"' EXIT
