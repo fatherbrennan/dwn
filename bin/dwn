@@ -4,14 +4,14 @@ SYSTEM_OS=macos                                     # macos | linux | windows
 DWN_VERSION=$(head -n 1 "$DWN_INSTALL/bin/version") # format: 0.0.0
 DWN_CMD=dwn                                         # dwn | continue | list | remove
 
-DIR_TEMP="$(mktemp -d)"
 DIR_LIST="$DWN_INSTALL/bin/list"
 
 FILE_ZSHRC="$HOME/.zshrc"
 
-has_output_file=0
+do_remove_after_first_try=0
 dwn_url=
 dwn_output_file=
+has_output_file=0
 
 # error codes.
 ERROR_SYSTEM_OS_UNKNOWN=001
@@ -133,12 +133,10 @@ while [[ $# -gt 0 ]]; do
     shift
     ;;
   ls | list)
-    log 'list'
     DWN_CMD=list
     shift
     ;;
   rm | remove)
-    log 'remove'
     DWN_CMD=remove
     shift
     ;;
@@ -149,7 +147,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 # parse command-line options with getopts.
-while getopts "vho:aifc" opt; do
+while getopts "acfhio:rv" opt; do
   case $opt in
   v)
     [[ "$DWN_CMD" != "dwn" ]] && log_error_exit $ERROR_OPTION_INVALID_CMD
@@ -163,6 +161,10 @@ while getopts "vho:aifc" opt; do
     [[ "$DWN_CMD" != "dwn" ]] && log_error_exit $ERROR_OPTION_INVALID_CMD
     has_output_file=1
     dwn_output_file="$OPTARG"
+    ;;
+  r)
+    [[ "$DWN_CMD" != "dwn" ]] && log_error_exit $ERROR_OPTION_INVALID_CMD
+    do_remove_after_first_try=1
     ;;
   a)
     [[ "$DWN_CMD" != "remove" ]] && log_error_exit $ERROR_OPTION_INVALID_CMD
@@ -190,35 +192,53 @@ function generate_id() {
 }
 
 # $1 id.
-function get_list_item_url() {
+function get_list_item_output_file() {
   head -n 1 "$DIR_LIST/$1"
 }
 
 # $1 id.
-function get_list_item_output_file() {
+function get_list_item_url() {
   head -n 2 "$DIR_LIST/$1" | tail -n 1
 }
 
 # $1 id.
-# $2 url.
-# $3 absolute path of output file.
+# $2 absolute path of output file.
+# $3 url.
 function create_list_item() {
-  log "[$1]: create"
-  printf '%s\n%s' "$2" "$3" >"$DIR_LIST/$1"
+  printf '%s\n%s' "$2" "$3" >"$DIR_LIST/$1" && log "[$1]: created"
 }
 
-# $1 id.
-function remove_list_item() {
-  log "[$1]: remove"
-  rm -f "$DIR_LIST/$1"
+# $@ space separated ids.
+function remove_list_items() {
+  for id in "$@"; do
+    rm "$DIR_LIST/$id" && log "[$id]: deleted"
+  done
+}
+
+# return the number of items in the list (will return 0 if no items).
+# display list of items in a table if any.
+function show_list_items() {
+  local count=$(ls "$DIR_LIST" | wc -l | tr -d ' ')
+  if [[ "$count" -eq 0 ]]; then
+    log "$count items" && exit 0
+  fi
+
+  local table='ID|Output|URL\n'
+  for item in "$DIR_LIST"/*; do
+    if file_exists "$item"; then
+      local id="$(basename "$item")"
+      table+="$id|$(get_list_item_output_file "$id")|$(get_list_item_url "$id")\n"
+    fi
+  done
+
+  log "$count items\n"
+  printf "$table" | column -t -s '|'
 }
 
 # $1 id.
 function download_list_item() {
-  log "[$1]: download"
-  url=$(get_list_item_url "$1")
-  output_file=$(get_list_item_output_file "$1")
-  wget -c -O "$dwn_output_file" "$dwn_url"
+  log "[$1]: download\n"
+  wget -c -O "$(get_list_item_output_file "$1")" "$(get_list_item_url "$1")"
 }
 
 function run_dwn() {
@@ -242,8 +262,8 @@ function run_dwn() {
     id=$(generate_id)
   done
 
-  create_list_item "$id" "$dwn_url" "$dwn_output_file"
-  download_list_item "$id"
+  create_list_item "$id" "$dwn_output_file" "$dwn_url"
+  download_list_item "$id" && bool $do_remove_after_first_try && remove_list_items "$id"
 }
 
 function run_continue() {
@@ -251,11 +271,11 @@ function run_continue() {
 }
 
 function run_list() {
-  log 'command: list'
+  show_list_items
 }
 
 function run_remove() {
-  log 'command: remove'
+  remove_list_items "$@"
 }
 
 # run command.
@@ -271,13 +291,10 @@ list)
   run_list
   ;;
 remove)
-  run_remove
+  run_remove "$@"
   ;;
 *)
   log_error_exit $ERROR_RUN_COMMAND_UNKNOWN
   break
   ;;
 esac
-
-# remove temp directory on exit.
-trap 'rm -rf -- "$DIR_TEMP"' EXIT
