@@ -36,25 +36,25 @@ ERROR[$ERROR_CONFIG_DIR_REMOVE]='error removing dwn config directory'
 
 # print line.
 function print_ln() {
-  printf "%s\n" "$1"
+  printf '%s\n' "$1"
 }
 
 # print error code and message, and exit with non-zero code.
 # $1 ERROR code.
 function log_error_exit() {
-  printf '[%s] %s [ERROR:%s]:\t%s\n' "$INSTALLER_LOG" "$INSTALLER_STEP" "$1" "$ERROR[$1]" && exit 1
+  printf '[%s] %s [ERROR:%s]:\t%b\n' "$INSTALLER_LOG" "$INSTALLER_STEP" "$1" "$ERROR[$1]" && exit 1
 }
 
 # print warning log message.
 # $1 warning message.
 function log_warn() {
-  printf '[%s] %s [WARN]:\t%s\n' "$INSTALLER_LOG" "$INSTALLER_STEP" "$1"
+  printf '[%s] %s [WARN]:\t%b\n' "$INSTALLER_LOG" "$INSTALLER_STEP" "$1"
 }
 
 # print log message.
 # $1 log message.
 function log() {
-  printf '[%s] %s\t%s\n' "$INSTALLER_LOG" "$INSTALLER_STEP" "$1"
+  printf '[%s] %s\t%b\n' "$INSTALLER_LOG" "$INSTALLER_STEP" "$1"
 }
 
 # return expected result of bool function.
