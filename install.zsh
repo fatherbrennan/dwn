@@ -27,13 +27,13 @@ function set_env_vars() {
   if [[ -f "$FILE_ZSHRC" ]]; then
     # append text if not in file.
     if ! grep -qzo "$ENV_VARIABLES_TEXT" "$FILE_ZSHRC"; then
-      print_ln "$env_vars_text" >>"$FILE_ZSHRC" || log_error_exit $ERROR_ENV_VARS_APPEND
+      printf "$env_vars_text" >>"$FILE_ZSHRC" || log_error_exit $ERROR_ENV_VARS_APPEND
     else
       log 'environment variables already exist!'
     fi
   else
     # create file with text.
-    print_ln "$env_vars_text" >"$FILE_ZSHRC" || log_error_exit $ERROR_ENV_VARS_WRITE
+    printf "$env_vars_text" >"$FILE_ZSHRC" || log_error_exit $ERROR_ENV_VARS_WRITE
     log 'environment variables added!'
   fi
 
