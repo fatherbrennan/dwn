@@ -12,7 +12,7 @@ function set_bin_dir_permissions() {
   INSTALLER_STEP=permissions
 
   chmod 755 ./bin/dwn || log_error_exit $ERROR_PERMISSIONS_BIN_DIR
-  log "dwn permissions set!"
+  log 'dwn permissions set!'
 }
 
 # add environment variables to zsh.
@@ -29,12 +29,12 @@ function set_env_vars() {
     if ! grep -qzo "$ENV_VARIABLES_TEXT" "$FILE_ZSHRC"; then
       print_ln "$env_vars_text" >>"$FILE_ZSHRC" || log_error_exit $ERROR_ENV_VARS_APPEND
     else
-      log "environment variables already exist!"
+      log 'environment variables already exist!'
     fi
   else
     # create file with text.
     print_ln "$env_vars_text" >"$FILE_ZSHRC" || log_error_exit $ERROR_ENV_VARS_WRITE
-    log "environment variables added!"
+    log 'environment variables added!'
   fi
 
   # make sure to make new variables available.
@@ -85,9 +85,9 @@ set_env_vars
 set_config_dir
 
 print_ln
-print_ln "installed dwn"
+print_ln 'installed dwn'
 print_ln "=> v$DWN_VERSION"
-print_ln "to check if the installation was successful, use"
+print_ln 'to check if the installation was successful, use'
 print_ln
-print_ln "    dwn -v"
+print_ln '    dwn -v'
 print_ln

@@ -35,7 +35,7 @@ function unset_env_vars() {
     # remove environment variables from file.
     grep -xvFf "$_tmp_f_env_vars" "$FILE_ZSHRC" >"$_tmp_f_zshrc" && mv "$_tmp_f_zshrc" "$FILE_ZSHRC"
   fi
-  log "environment variables unset!"
+  log 'environment variables unset!'
 }
 
 unset_config_dir

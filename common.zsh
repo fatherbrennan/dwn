@@ -9,7 +9,7 @@ ENV_VARIABLES_TEXT='# dwn\nexport DWN_INSTALL="$HOME/.dwn"\nexport PATH="$DWN_IN
 DIR_TEMP="$(mktemp -d)"
 
 FILE_ZSHRC="$HOME/.zshrc"
-FILE_DWN_VERSION="bin/version"
+FILE_DWN_VERSION='bin/version'
 
 INSTALLER_DWN_VERSION=$(head -n 1 "./$FILE_DWN_VERSION") # format: 0.0.0
 
@@ -27,16 +27,16 @@ ERROR_CONFIG_DIR_REMOVE=030
 typeset -A ERROR=()
 ERROR[$ERROR_SYSTEM_OS_UNKNOWN]="unknown operating system: $OSTYPE"
 ERROR[$ERROR_SYSTEM_OS_UNSUPPORTED]="unsupported operating system: $OSTYPE"
-ERROR[$ERROR_PERMISSIONS_BIN_DIR]="error setting permissions of bin directory"
-ERROR[$ERROR_ENV_VARS_APPEND]="cannot append environment variables to ~/.zshrc"
-ERROR[$ERROR_ENV_VARS_WRITE]="cannot write environment variables to ~/.zshrc"
-ERROR[$ERROR_ENV_VARS_REMOVE]="error removing environment variables from ~/.zshrc"
-ERROR[$ERROR_ENV_VARS_SOURCE]="error sourcing environment variables from ~/.zshrc"
-ERROR[$ERROR_CONFIG_DIR_REMOVE]="error removing dwn config directory"
+ERROR[$ERROR_PERMISSIONS_BIN_DIR]='error setting permissions of bin directory'
+ERROR[$ERROR_ENV_VARS_APPEND]='cannot append environment variables to ~/.zshrc'
+ERROR[$ERROR_ENV_VARS_WRITE]='cannot write environment variables to ~/.zshrc'
+ERROR[$ERROR_ENV_VARS_REMOVE]='error removing environment variables from ~/.zshrc'
+ERROR[$ERROR_ENV_VARS_SOURCE]='error sourcing environment variables from ~/.zshrc'
+ERROR[$ERROR_CONFIG_DIR_REMOVE]='error removing dwn config directory'
 
 # print line.
 function print_ln() {
-  printf "$1\n"
+  printf '%s\n' "$1"
 }
 
 # print error code and message, and exit with non-zero code.
@@ -78,11 +78,11 @@ function bool() {
 function set_os() {
   INSTALLER_STEP=os_check
 
-  if [[ "$OSTYPE" == "darwin"* ]]; then
+  if [[ "$OSTYPE" == 'darwin'* ]]; then
     SYSTEM_OS=macos
-  elif [[ "$OSTYPE" == "linux"* ]]; then
+  elif [[ "$OSTYPE" == 'linux'* ]]; then
     SYSTEM_OS=linux
-  elif [[ "$OSTYPE" == "cygwin" || "$OSTYPE" == "msys" || "$OSTYPE" == "win32" ]]; then
+  elif [[ "$OSTYPE" == 'cygwin' || "$OSTYPE" == 'msys' || "$OSTYPE" == 'win32' ]]; then
     SYSTEM_OS=windows
     log_error_exit $ERROR_SYSTEM_OS_UNSUPPORTED
   else
