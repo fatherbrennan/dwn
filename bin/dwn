@@ -265,13 +265,26 @@ function download_list_item() {
 
 # $@ space separated ids.
 function continue_list_items() {
+  typeset -i count=0
   local items=
   _tmp_f_continue=$(mktemp)
+
+  # get all valid items to continue.
   for id in "$@"; do
-    file_exists "$DIR_LIST/$id" && items+="$(get_list_item_url "$id") $(get_list_item_output_file "$id")\n" || log_warn "[$id]: missing"
+    if file_exists "$DIR_LIST/$id"; then
+      count+=1
+      items+="$(get_list_item_url "$id") $(get_list_item_output_file "$id")\n"
+    else
+      log_warn "[$id]: missing"
+    fi
   done
-  [[ -z "$items" ]] && log 'no items to continue' && exit 0
+
+  log "$count items"
+  # exit if no items to continue.
+  [[ "$count" -eq 0 ]] && exit 0
   printf "$items" >"$_tmp_f_continue"
+
+  # continue downloading items.
   wget -c -nv --show-progress -i "$_tmp_f_continue"
 }
 
