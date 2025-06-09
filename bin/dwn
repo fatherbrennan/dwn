@@ -234,10 +234,7 @@ function remove_list_items() {
 # return the number of items in the list (will return 0 if no items).
 # display list of items in a table if any.
 function show_list_items() {
-  local count=$(ls "$DIR_LIST" | wc -l | tr -d ' ')
-  if [[ "$count" -eq 0 ]]; then
-    log "$count items" && exit 0
-  fi
+  typeset -i count=0
 
   local table='ID|%%|Progress|Output|URL\n`|`|`|`\n'
   for item in "$DIR_LIST"/*; do
@@ -247,13 +244,17 @@ function show_list_items() {
       local item_size=$(get_list_item_size "$id")
       local file_size=$(file_exists "$item_output_file" && cat "$item_output_file" | wc -c | tr -d ' ' || printf 0)
       local percent=$(printf %.f $(($file_size * 100 / $item_size)))
-      bool $do_show_complete_list && [[ "$percent" -ne 100 ]] && continue
-      bool $do_show_incomplete_list && [[ "$percent" -eq 100 ]] && continue
+
+      bool $do_show_complete_list && ! bool $do_show_incomplete_list && [[ "$percent" -ne 100 ]] && continue
+      bool $do_show_incomplete_list && ! bool $do_show_complete_list && [[ "$percent" -eq 100 ]] && continue
+
+      count+=1
       table+="$id|$percent|[$file_size/$item_size]|$item_output_file|$(get_list_item_url "$id")\n"
     fi
   done
 
   log "$count items\n"
+  [[ "$count" -eq 0 ]] && exit 0
   printf "$table" | column -t -s '|'
 }
 
