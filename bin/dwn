@@ -260,7 +260,7 @@ function show_list_items() {
 # $1 id.
 function download_list_item() {
   log "[$1]: download\n"
-  wget -c -O "$(get_list_item_output_file "$1")" "$(get_list_item_url "$1")"
+  wget -c -nv --show-progress -O "$(get_list_item_output_file "$1")" "$(get_list_item_url "$1")"
 }
 
 function run_dwn() {
