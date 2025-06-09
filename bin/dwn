@@ -4,6 +4,7 @@ SYSTEM_OS=macos                                     # macos | linux | windows
 DWN_VERSION=$(head -n 1 "$DWN_INSTALL/bin/version") # format: 0.0.0
 DWN_CMD=dwn                                         # dwn | continue | list | remove
 
+DIR_TEMP="$(mktemp -d)"
 DIR_LIST="$DWN_INSTALL/bin/list"
 
 FILE_ZSHRC="$HOME/.zshrc"
@@ -132,7 +133,6 @@ while [[ $# -gt 0 ]]; do
     print_usage_exit
     ;;
   continue)
-    log 'continue'
     DWN_CMD=continue
     shift
     ;;
@@ -263,6 +263,18 @@ function download_list_item() {
   wget -c -nv --show-progress -O "$(get_list_item_output_file "$1")" "$(get_list_item_url "$1")"
 }
 
+# $@ space separated ids.
+function continue_list_items() {
+  local items=
+  _tmp_f_continue=$(mktemp)
+  for id in "$@"; do
+    file_exists "$DIR_LIST/$id" && items+="$(get_list_item_url "$id") $(get_list_item_output_file "$id")\n" || log_warn "[$id]: missing"
+  done
+  [[ -z "$items" ]] && log 'no items to continue' && exit 0
+  printf "$items" >"$_tmp_f_continue"
+  wget -c -nv --show-progress -i "$_tmp_f_continue"
+}
+
 function run_dwn() {
   if bool $has_output_file; then
     # check if the output file exists.
@@ -292,7 +304,7 @@ function run_dwn() {
 }
 
 function run_continue() {
-  log 'command: continue'
+  continue_list_items "$@"
 }
 
 function run_list() {
@@ -310,7 +322,7 @@ dwn)
   run_dwn
   ;;
 continue)
-  run_continue
+  run_continue "$@"
   ;;
 list)
   run_list
@@ -323,3 +335,6 @@ remove)
   break
   ;;
 esac
+
+# remove temp directory on exit.
+trap 'rm -rf -- "$DIR_TEMP"' EXIT
