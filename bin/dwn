@@ -1,397 +1,354 @@
-#!/bin/zsh
+#!/usr/bin/env zsh
+#
+# Simple download manager.
+#
+#
+# Author: Brandon Lepore <https://github.com/fatherbrennan>
+# Date: June 05, 2025
+# License: MIT
 
-SYSTEM_OS=macos                                     # macos | linux | windows
-DWN_VERSION=$(head -n 1 "$DWN_INSTALL/bin/version") # format: 0.0.0
-DWN_CMD=dwn                                         # dwn | continue | list | remove
-
-DIR_TEMP="$(mktemp -d)"
+PROG_NAME=dwn
+PROG_VERSION=
+PROG_CMD=dwn # dwn | continue | list | remove
 DIR_LIST="$DWN_INSTALL/bin/list"
 
-FILE_ZSHRC="$HOME/.zshrc"
+# Error codes.
+E_CMD_INVALID=001
+E_CMD_OPT_INVALID=002
+E_CMD_OPT_VAL_REQUIRED=003
+E_SYS_OS_UNSUPPORTED=010
+E_SYS_OS_UNKNOWN=011
+E_DWN_OUTPUT_FILE_EXISTS=020
+E_DWN_REMOTE_PING_FAILED=021
+E_DWN_CREATE_ITEM_FAILED=022
+E_DWN_REMOVE_ITEM_FAILED=023
+E_REMOVE_UNKNOWN_ID=030
 
-do_remove_after_first_try=0
-do_remove_complete=0
-do_remove_incomplete=0
-do_show_complete_list=0
-do_show_incomplete_list=0
-do_remove_from_fs=0
-do_remove_all=0
-dwn_url=
-dwn_output_file=
-has_output_file=0
-
-# error codes.
-ERROR_SYSTEM_OS_UNKNOWN=001
-ERROR_SYSTEM_OS_UNSUPPORTED=002
-ERROR_OPTION_INVALID_CMD=010
-ERROR_RUN_COMMAND_UNKNOWN=020
-ERROR_DWN_OUTPUT_FILE_EXISTS=030
-ERROR_DWN_OUTPUT_FILE_INVALID=031
-ERROR_DWN_PING_FAILED=032
-
-# error code messages.
 typeset -A ERROR=()
-ERROR[$ERROR_SYSTEM_OS_UNKNOWN]="unknown operating system: $OSTYPE"
-ERROR[$ERROR_SYSTEM_OS_UNSUPPORTED]="unsupported operating system: $OSTYPE"
-ERROR[$ERROR_OPTION_INVALID_CMD]="$DWN_CMD command does not support passed option, for more information use\n\n    dwn usage\n"
-ERROR[$ERROR_RUN_COMMAND_UNKNOWN]="i have no idea how you got here, but i'm not going to let you do that"
-ERROR[$ERROR_DWN_OUTPUT_FILE_EXISTS]="output file already exists"
-ERROR[$ERROR_DWN_OUTPUT_FILE_INVALID]="you can't put that there"
-ERROR[$ERROR_DWN_PING_FAILED]="you just might be schizophrenic"
+ERROR[$E_CMD_INVALID]='this just is not a command'
+ERROR[$E_SYS_OS_UNSUPPORTED]="$SYS_OS is not supported"
+ERROR[$E_SYS_OS_UNKNOWN]="'$SYS_OS' cannot be a real operating system"
+ERROR[$E_DWN_REMOTE_PING_FAILED]='remote content does not contain Content-Length'
 
-# print line.
-function print_ln() {
-  printf '%s\n' "$1"
+# return expected result of bool function.
+# 0 = false
+# 1 = true
+# $1 `0` or `1`
+bool() {
+  [[ $1 -eq 1 ]] && return 0 || return 1
 }
 
-# print error code and message, and exit with non-zero code.
-# $1 ERROR code.
-function log_error_exit() {
+log_error_exit() {
   printf '[ERROR:%s]:\t%b\n' "$1" "$ERROR[$1]" && exit 1
 }
 
-# print warning log message.
-# $1 warning message.
-function log_warn() {
-  printf '[WARN]:\t%b\n' "$1"
-}
-
-# print log message.
-# $1 log message.
-function log() {
+log() {
   printf '%b\n' "$1"
 }
 
-# return expected result of bool function.
-# ```zsh
-# is_true=1
-# is_false=0
-# bool $is_true && print_ln true || print_ln false # true
-# bool $is_false && print_ln true || print_ln false # false
-# ```
-# $1 `0` (`false`) or `1` (`true`).
-function bool() {
-  if [[ $1 -eq 1 ]]; then
-    return 0
-  else
-    return 1
-  fi
+print_version_exit() {
+  cat "$DWN_INSTALL/bin/version" && exit 0
+}
+
+# $1 value of `$PROG_CMD`.
+print_help_exit() {
+  cat "$DWN_INSTALL/bin/help/$1" && exit 0
+}
+
+print_usage_exit() {
+  cat "$DWN_INSTALL/bin/usage" && exit 0
 }
 
 # set the operating system.
 # error if not supported.
-function set_os() {
-  if [[ "$OSTYPE" == "darwin"* ]]; then
-    SYSTEM_OS=macos
-  elif [[ "$OSTYPE" == "linux"* ]]; then
-    SYSTEM_OS=linux
-  elif [[ "$OSTYPE" == "cygwin" || "$OSTYPE" == "msys" || "$OSTYPE" == "win32" ]]; then
-    SYSTEM_OS=windows
-    log_error_exit $ERROR_SYSTEM_OS_UNSUPPORTED
-  else
-    log_error_exit $ERROR_SYSTEM_OS_UNKNOWN
-  fi
-  log "$SYSTEM_OS"
-}
+set_os() {
+  INSTALLER_STEP=os_check
 
-# return 0 if file exists, 1 if not.
-# $1 file path.
-function file_exists() {
-  if [[ -f "$1" ]]; then
-    return 0
-  else
-    return 1
-  fi
-}
-
-# todo: this needs to be updated, simple placeholder for now.
-# print usage and exit gracefully.
-function print_usage_exit() {
-  print_ln 'usage: dwn [options] [arguments]' && exit 0
-}
-
-# print the version and exit gracefully.
-function print_version_exit() {
-  print_ln "$DWN_VERSION" && exit 0
-}
-
-# print usage and exit if no arguments specified.
-if [[ "$#" -eq 0 ]]; then
-  print_usage_exit
-fi
-
-# ensure list directory exists.
-if [[ ! -d "$DIR_LIST" ]]; then
-  mkdir "$DIR_LIST"
-fi
-
-# parse commands and long options manually.
-while [[ $# -gt 0 ]]; do
-  case "$1" in
-  version | --version)
-    [[ "$DWN_CMD" != "dwn" ]] && log_error_exit $ERROR_OPTION_INVALID_CMD
-    print_version_exit
-    ;;
-  usage | help | --help)
-    [[ "$DWN_CMD" != "dwn" ]] && log_error_exit $ERROR_OPTION_INVALID_CMD
-    print_usage_exit
-    ;;
-  continue)
-    DWN_CMD=continue
-    shift
-    ;;
-  ls | list)
-    DWN_CMD=list
-    shift
-    ;;
-  rm | remove)
-    DWN_CMD=remove
-    shift
-    ;;
-  *)
-    break
-    ;;
+  case "$OSTYPE" in
+    'darwin'*) SYS_OS=macos ;;
+    'linux'*) SYS_OS=linux ;;
+    'cygwin' | 'msys' | 'win32')
+      SYS_OS=windows
+      log_error_exit $E_SYS_OS_UNSUPPORTED
+      ;;
+    *) log_error_exit $E_SYS_OS_UNKNOWN ;;
   esac
-done
 
-# parse command-line options with getopts.
-while getopts "acfhio:rv" opt; do
-  case $opt in
-  v)
-    [[ "$DWN_CMD" != "dwn" ]] && log_error_exit $ERROR_OPTION_INVALID_CMD
-    print_version_exit
-    ;;
-  h)
-    [[ "$DWN_CMD" != "dwn" ]] && log_error_exit $ERROR_OPTION_INVALID_CMD
-    print_usage_exit
-    ;;
-  o)
-    [[ "$DWN_CMD" != "dwn" ]] && log_error_exit $ERROR_OPTION_INVALID_CMD
-    has_output_file=1
-    dwn_output_file="$OPTARG"
-    ;;
-  r)
-    [[ "$DWN_CMD" != "dwn" ]] && log_error_exit $ERROR_OPTION_INVALID_CMD
-    do_remove_after_first_try=1
-    ;;
-  a)
-    [[ "$DWN_CMD" != "remove" ]] && log_error_exit $ERROR_OPTION_INVALID_CMD
-    do_remove_all=1
-    ;;
-  c)
-    [[ "$DWN_CMD" != "list" && "$DWN_CMD" != "remove" ]] && log_error_exit $ERROR_OPTION_INVALID_CMD
-    [[ "$DWN_CMD" == "list" ]] && do_show_complete_list=1
-    [[ "$DWN_CMD" == "remove" ]] && do_remove_complete=1
-    ;;
-  i)
-    [[ "$DWN_CMD" != "list" && "$DWN_CMD" != "remove" ]] && log_error_exit $ERROR_OPTION_INVALID_CMD
-    [[ "$DWN_CMD" == "list" ]] && do_show_incomplete_list=1
-    [[ "$DWN_CMD" == "remove" ]] && do_remove_incomplete=1
-    ;;
-  f)
-    [[ "$DWN_CMD" != "remove" ]] && log_error_exit $ERROR_OPTION_INVALID_CMD
-    do_remove_from_fs=1
-    ;;
-  \?)
-    print_usage_exit
-    ;;
-  esac
-done
+  log "$SYS_OS"
+}
 
-# remove parsed options and arguments.
-shift $((OPTIND - 1))
+# $@
+allow_cmd() {
+  for cmd in "$@"; do
+    [[ "$PROG_CMD" == "$cmd" ]] && return 0
+  done
+  return 1
+}
 
-function generate_id() {
+# $1 opt
+# $2 opt value
+enforce_opt() {
+  ERROR[$E_CMD_OPT_VAL_REQUIRED]="option is empty with no value: $1"
+  [[ -z "$2" ]] && log_error_exit $E_CMD_OPT_VAL_REQUIRED
+}
+
+# return a random id.
+generate_id() {
   openssl rand -hex 4
 }
 
-# $1 id.
-function get_list_item_output_file() {
-  head -n 1 "$DIR_LIST/$1"
+# return 0 when file exists.
+# $1 file path.
+file_exists() {
+  [[ -e "$1" ]] && return 0 || return 1
 }
 
-# $1 id.
-function get_list_item_url() {
-  head -n 2 "$DIR_LIST/$1" | tail -n 1
-}
-
-# $1 id.
-function get_list_item_size() {
-  head -n 3 "$DIR_LIST/$1" | tail -n 1
-}
-
-# $1 item output file.
-function get_list_item_output_file_size() {
-  file_exists "$1" && cat "$1" | wc -c | tr -d ' ' || printf 0
-}
-
-# $1 numerator.
-# $2 denominator.
-function format_percent() {
-  printf %.f $(($1 * 100 / $2))
-}
-
-# $1 id.
-# $2 absolute path of output file.
-# $3 url.
-# $4 content size in bytes.
-# create list item file with following lines:
+# create list item.
+#
+# item filename is `id`, with following lines as content:
 #  - output file path
 #  - url
 #  - content size in bytes
-function create_list_item() {
-  printf '%s\n%s\n%s' "$2" "$3" "$4" >"$DIR_LIST/$1" && log "[$1]: created"
-}
-
-# $@ space separated ids.
-function remove_list_items() {
-  for id in "$@"; do
-    ! file_exists "$DIR_LIST/$id" && log_warn "[$id]: missing" && continue
-    if bool $do_remove_from_fs; then
-      local file_path=$(get_list_item_output_file "$id")
-      rm -f "$file_path" && log "[$id]: [$file_path]: deleted"
-    fi
-    rm "$DIR_LIST/$id" && log "[$id]: removed"
-  done
-}
-
-# return the number of items in the list (will return 0 if no items).
-# display list of items in a table if any.
-function show_list_items() {
-  typeset -i count=0
-
-  if [[ -n $(ls "$DIR_LIST") ]]; then
-    local table='ID|%%|Progress|Output|URL\n`|`|`|`\n'
-    for item in "$DIR_LIST"/*; do
-      if file_exists "$item"; then
-        local id="$(basename "$item")"
-        local item_output_file=$(get_list_item_output_file "$id")
-        local item_size=$(get_list_item_size "$id")
-        local file_size=$(get_list_item_output_file_size "$item_output_file")
-        local percent=$(format_percent "$file_size" "$item_size")
-
-        bool $do_show_complete_list && ! bool $do_show_incomplete_list && [[ "$percent" -ne 100 ]] && continue
-        bool $do_show_incomplete_list && ! bool $do_show_complete_list && [[ "$percent" -eq 100 ]] && continue
-
-        count+=1
-        table+="$id|$percent|[$file_size/$item_size]|$item_output_file|$(get_list_item_url "$id")\n"
-      fi
-    done
-  fi
-
-  [[ "$count" -eq 0 ]] && log "$count items" && exit 0
-  log "$count items\n"
-  printf "$table" | column -t -s '|'
-}
-
+#
 # $1 id.
-function download_list_item() {
+# $2 absolute path of output file.
+# $3 remote url.
+# $4 content size in bytes.
+create_list_item() {
+  ERROR[$E_DWN_CREATE_ITEM_FAILED]="failed to create item: $1"
+  printf '%s\n%s\n%s' "$2" "$3" "$4" >"$DIR_LIST/$1" &&
+    log "[$1]: created" ||
+      log_error_exit $E_DWN_CREATE_ITEM_FAILED
+}
+
+# remove list item.
+# $1 id.
+remove_list_item() {
+  ERROR[$E_DWN_REMOVE_ITEM_FAILED]="failed to remove item: $1"
+  rm "$DIR_LIST/$id" &&
+    log "[$id]: removed" ||
+      log_error_exit $E_DWN_REMOVE_ITEM_FAILED
+}
+
+# return `id` list item output file.
+# $1 id.
+get_list_item_output_file() {
+  head -n 1 "$DIR_LIST/$1"
+}
+
+# return `id` list item url.
+# $1 id.
+get_list_item_url() {
+  head -n 2 "$DIR_LIST/$1" | tail -n 1
+}
+
+# return `id` list item content size.
+# $1 id.
+get_list_item_size() {
+  head -n 3 "$DIR_LIST/$1" | tail -n 1
+}
+
+# download list item.
+# $1 id.
+download_list_item() {
   log "[$1]: download\n"
-  wget -c -nv --show-progress -O "$(get_list_item_output_file "$1")" "$(get_list_item_url "$1")"
+  wget -c -nv --show-progress -O \
+    "$(get_list_item_output_file "$1")" "$(get_list_item_url "$1")"
 }
 
-# $@ space separated ids.
-function continue_list_items() {
-  typeset -i count=0
-  local items=
-  _tmp_f_continue=$(mktemp)
+# download item.
+# $1 remote url.
+run_download() {
+  local remote_url="$1"
+  local output_file="$opt_o"
+  ERROR[$E_DWN_OUTPUT_FILE_EXISTS]="file exists: $output_file"
+  ERROR[$E_DWN_OUTPUT_FILE_INVALID]="file is invalid: $output_file"
 
-  # get all valid items to continue.
-  for id in "$@"; do
-    if file_exists "$DIR_LIST/$id"; then
-      count+=1
-      items+="$(get_list_item_url "$id") $(get_list_item_output_file "$id")\n"
-    else
-      log_warn "[$id]: missing"
-    fi
-  done
-
-  log "$count items"
-  # exit if no items to continue.
-  [[ "$count" -eq 0 ]] && exit 0
-  printf "$items" >"$_tmp_f_continue"
-
-  # continue downloading items.
-  wget -c -nv --show-progress -i "$_tmp_f_continue"
-}
-
-function run_dwn() {
-  if bool $has_output_file; then
+  if bool $has_opt_o; then
     # check if the output file exists.
-    [[ -f "$dwn_output_file" ]] && log_error_exit $ERROR_DWN_OUTPUT_FILE_EXISTS
+    [[ -f "$output_file" ]] && log_error_exit $E_DWN_OUTPUT_FILE_EXISTS
     # check if the output file can be created.
-    [[ ! -e "$dwn_output_file" && -w "$(dirname "$dwn_output_file")" ]] || log_error_exit $ERROR_DWN_OUTPUT_FILE_INVALID
-    # get absolute path of output file.
-    dwn_output_file=${dwn_output_file:P}
+    [[ ! -e "$output_file" && -w "${output_file:h}" ]] ||
+       log_error_exit $E_DWN_OUTPUT_FILE_INVALID
   else
     # use the basename of the url as the output file.
-    dwn_output_file="$(basename "$dwn_url")"
-    dwn_output_file=${dwn_output_file:P}
+    output_file="${remote_url:t}"
   fi
 
-  id=$(generate_id)
+  # get the absolute output file path.
+  output_file=${output_file:P}
+  local id=$(generate_id)
 
-  # create unique id.
+  # ensure unique id.
   while file_exists "$DIR_LIST/$id"; do
     id=$(generate_id)
   done
 
-  local content_length=$(wget --spider --server-response --tries=1 "$dwn_url" 2>&1 | sed -n 's/[[:space:]]*Content-Length:[[:space:]]*//p')
+  local content_length=$(wget --spider -S -t=1 "$remote_url" 2>&1 |
+    sed -n 's/[[:space:]]*Content-Length:[[:space:]]*//p')
 
-  [[ -z "$content_length" ]] && log_error_exit $ERROR_DWN_PING_FAILED
-  create_list_item "$id" "$dwn_output_file" "$dwn_url" "$content_length"
-  download_list_item "$id" && bool $do_remove_after_first_try && remove_list_items "$id"
+    # throws if invalid remote url, or no content length.
+  [[ -z "$content_length" ]] && log_error_exit $E_DWN_REMOTE_PING_FAILED
+
+  # add item to list if ignore option is absent.
+  bool "$has_opt_i" ||
+    create_list_item "$id" "$output_file" "$remote_url" "$content_length"
+
+  download_list_item "$id"
 }
 
-function run_continue() {
-  continue_list_items "$@"
-}
+# list items.
+run_list() {
+  local count=$(ls "$DIR_LIST" | wc -l | tr -d ' ')
 
-function run_list() {
-  show_list_items
-}
-
-function run_remove() {
-  remove_list_items "$@"
-}
-
-# run command.
-case "$DWN_CMD" in
-dwn)
-  dwn_url="$1"
-  run_dwn
-  ;;
-continue)
-  run_continue "$@"
-  ;;
-list)
-  run_list
-  ;;
-remove)
-  if bool $do_remove_all || bool $do_remove_complete || bool $do_remove_incomplete; then
-    local items=()
-
-    if [[ -n $(ls "$DIR_LIST") ]]; then
-      for item in "$DIR_LIST"/*; do
-        id="$(basename "$item")"
-        bool $do_remove_all && items+=("$id") && continue
-        local item_output_file=$(get_list_item_output_file "$id")
-        local percent=$(format_percent "$(get_list_item_output_file_size "$item_output_file")" "$(get_list_item_size "$id")")
-        bool $do_remove_complete && ! bool $do_remove_incomplete && [[ "$percent" -ne 100 ]] && continue
-        bool $do_remove_incomplete && ! bool $do_remove_complete && [[ "$percent" -eq 100 ]] && continue
-        items+=("$id")
-      done
-    fi
-    run_remove "${items[@]}"
-  else
-    run_remove "$@"
+  if [[ "$count" -eq 0 ]]; then
+    list items.
   fi
-  ;;
-*)
-  log_error_exit $ERROR_RUN_COMMAND_UNKNOWN
-  break
-  ;;
-esac
 
-# remove temp directory on exit.
-trap 'rm -rf -- "$DIR_TEMP"' EXIT
+  local table='ID|%%|Progress|Output|URL\n`|`|`|`\n'
+  for item in "$DIR_LIST"/*; do
+    if file_exists "$item"; then
+      local id="$(basename "$item")"
+      local output_file=$(get_list_item_output_file "$id")
+      local size=$(get_list_item_size "$id")
+      local file_size=$(file_exists "$output_file" &&
+        cat "$output_file" | wc -c | tr -d ' ' || printf 0)
+      local percent=$(printf %.f $(($file_size * 100 / $size)))
+
+      # show complete items.
+      bool $has_opt_c && [[ "$percent" -ne 100 ]] && continue
+      # show incomplete items.
+      bool $has_opt_i && [[ "$percent" -eq 100 ]] && continue
+
+      table+="$id|$percent|[$file_size/$size]|$output_file|$(get_list_item_url "$id")\n"
+    fi
+  done
+
+  log "$count items\n"
+  printf "$table" | column -t -s '|'
+}
+
+# remove list items.
+# $@ space separated ids.
+run_remove() {
+  for id in "$@"; do
+    # error when an invalid id is passed.
+    if ! file_exists "$DIR_LIST/$id"; then
+      ERROR[$E_REMOVE_UNKNOWN_ID]="cannot remove unknown id: $id"
+      log_error_exit $E_REMOVE_UNKNOWN_ID
+    fi
+
+    rm "$DIR_LIST/$id" && log "[$id]: removed"
+  done
+}
+
+# continue a previous download.
+# $@ space separated ids.
+run_continue() {
+  for id in "$@"; do
+    ! file_exists "$DIR_LIST/$id" && log "[$id]: missing" && continue
+    download_list_item "$id"
+  done
+}
+
+main() {
+  # print usage and exit if no arguments specified.
+  if [[ "$#" -eq 0 ]]; then
+    print_usage_exit
+  fi
+
+  # ensure list directory exists.
+  if [[ ! -d "$DIR_LIST" ]]; then
+    mkdir "$DIR_LIST"
+  fi
+
+  set_os
+
+  local has_opt_a=0
+  local has_opt_c=0
+  local has_opt_f=0
+  local has_opt_h=0
+  local has_opt_i=0
+  local has_opt_r=0
+  local has_opt_o=0
+  local has_opt_v=0
+  local opt_o=''
+
+  while [[ $# -gt 0 ]]; do
+    ERROR[$E_CMD_OPT_INVALID]="option '$1' with '$PROG_CMD'... no."
+    case "$1" in
+      version | -v | '--version') print_version_exit ;;
+      help | -h | '--help') print_help_exit "$PROG_CMD" ;;
+      usage) print_usage_exit ;;
+      continue)
+        PROG_CMD=continue
+        shift
+        ;;
+      ls | list)
+        PROG_CMD=list
+        shift
+        ;;
+      rm | remove)
+        PROG_CMD=remove
+        shift
+        ;;
+      -a)
+        allow_cmd remove || log_error_exit $E_CMD_OPT_INVALID
+        has_opt_a=1
+        shift
+        ;;
+      -c)
+        allow_cmd list remove || log_error_exit $E_CMD_OPT_INVALID
+        has_opt_c=1
+        shift
+        ;;
+      -f)
+        allow_cmd remove || log_error_exit $E_CMD_OPT_INVALID
+        has_opt_f=1
+        shift
+        ;;
+      -i)
+        allow_cmd list remove || log_error_exit $E_CMD_OPT_INVALID
+        has_opt_i=1
+        shift
+        ;;
+      -o)
+        allow_cmd dwn || log_error_exit $E_CMD_OPT_INVALID
+        has_opt_o=1
+        enforce_opt "$1" "$2"
+        opt_o="$2"
+        shift 2
+        ;;
+      -r)
+        allow_cmd dwn || log_error_exit $E_CMD_OPT_INVALID
+        has_opt_i=1
+        shift
+        ;;
+      *)
+        allow_cmd dwn continue remove || log_error_exit $E_CMD_INVALID
+        break
+        ;;
+    esac
+  done
+
+  log "$PROG_NAME $PROG_CMD"
+  bool $has_opt_a && log '-a'
+  bool $has_opt_c && log '-c'
+  bool $has_opt_f && log '-f'
+  bool $has_opt_h && log '-h'
+  bool $has_opt_i && log '-i'
+  bool $has_opt_i && log '-r'
+  bool $has_opt_o && log "-o: $opt_o"
+  bool $has_opt_v && log '-v'
+
+  case "$PROG_CMD" in
+    dwn) run_download "$@" ;;
+    continue) run_continue "$@" ;;
+    list) run_list ;;
+    remove) run_remove "$@" ;;
+  esac
+
+  return 0
+}
+
+main "$@"
