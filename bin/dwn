@@ -21,8 +21,9 @@ E_SYS_OS_UNSUPPORTED=010
 E_SYS_OS_UNKNOWN=011
 E_DWN_OUTPUT_FILE_EXISTS=020
 E_DWN_REMOTE_PING_FAILED=021
-E_DWN_CREATE_ITEM_FAILED=022
-E_DWN_REMOVE_ITEM_FAILED=023
+E_ITEM_CREATE_FAILED=022
+E_ITEM_REMOVE_FAILED=023
+E_ITEM_REMOVE_LOCAL_FAILED=024
 E_REMOVE_UNKNOWN_ID=030
 
 typeset -A ERROR=()
@@ -113,19 +114,19 @@ file_exists() {
 # $3 remote url.
 # $4 content size in bytes.
 create_list_item() {
-  ERROR[$E_DWN_CREATE_ITEM_FAILED]="failed to create item: $1"
+  ERROR[$E_ITEM_CREATE_FAILED]="failed to create item: $1"
   printf '%s\n%s\n%s' "$2" "$3" "$4" >"$DIR_LIST/$1" &&
     log "[$1]: created" ||
-      log_error_exit $E_DWN_CREATE_ITEM_FAILED
+      log_error_exit $E_ITEM_CREATE_FAILED
 }
 
 # remove list item.
 # $1 id.
 remove_list_item() {
-  ERROR[$E_DWN_REMOVE_ITEM_FAILED]="failed to remove item: $1"
+  ERROR[$E_ITEM_REMOVE_FAILED]="failed to remove item: $1"
   rm "$DIR_LIST/$id" &&
     log "[$id]: removed" ||
-      log_error_exit $E_DWN_REMOVE_ITEM_FAILED
+      log_error_exit $E_ITEM_REMOVE_FAILED
 }
 
 # return `id` list item output file.
@@ -206,7 +207,7 @@ run_list() {
 
   for item in "$DIR_LIST"/*; do
     if file_exists "$item"; then
-      local id="$(basename "$item")"
+      local id="{$item:t}"
       local output_file=$(get_list_item_output_file "$id")
       local size=$(get_list_item_size "$id")
       local file_size=$(file_exists "$output_file" &&
@@ -231,13 +232,18 @@ run_list() {
 # $@ space separated ids.
 run_remove() {
   for id in "$@"; do
-    # error when an invalid id is passed.
-    if ! file_exists "$DIR_LIST/$id"; then
-      ERROR[$E_REMOVE_UNKNOWN_ID]="cannot remove unknown id: $id"
-      log_error_exit $E_REMOVE_UNKNOWN_ID
+    ! file_exists "$DIR_LIST/$id" && log "[$id]: missing" && continue
+
+    # remove the local corresponding file.
+    if bool $has_opt_f; then
+      local output_file="$(get_list_item_output_file $id)"
+      ERROR[$E_ITEM_REMOVE_LOCAL_FAILED]="[$id:$output_file]: failed to remove"
+      rm "$output_file" &&
+        log "[$id:$output_file]: removed" ||
+          log_error_exit $E_ITEM_REMOVE_LOCAL_FAILED
     fi
 
-    rm "$DIR_LIST/$id" && log "[$id]: removed"
+    remove_list_item "$id"
   done
 }
 
