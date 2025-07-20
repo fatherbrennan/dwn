@@ -197,13 +197,13 @@ run_download() {
 
 # list items.
 run_list() {
-  local count=$(ls "$DIR_LIST" | wc -l | tr -d ' ')
-
-  if [[ "$count" -eq 0 ]]; then
-    list items.
+  if [[ "$(ls "$DIR_LIST" | wc -l | tr -d ' ')" -eq 0 ]]; then
+    log '0 items' && exit 0
   fi
 
+  local count=$((0))
   local table='ID|%%|Progress|Output|URL\n`|`|`|`\n'
+
   for item in "$DIR_LIST"/*; do
     if file_exists "$item"; then
       local id="$(basename "$item")"
@@ -213,11 +213,12 @@ run_list() {
         cat "$output_file" | wc -c | tr -d ' ' || printf 0)
       local percent=$(printf %.f $(($file_size * 100 / $size)))
 
-      # show complete items.
+      # skip incomplete.
       bool $has_opt_c && [[ "$percent" -ne 100 ]] && continue
-      # show incomplete items.
+      # skip complete.
       bool $has_opt_i && [[ "$percent" -eq 100 ]] && continue
 
+      ((count++))
       table+="$id|$percent|[$file_size/$size]|$output_file|$(get_list_item_url "$id")\n"
     fi
   done
