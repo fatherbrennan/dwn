@@ -8,8 +8,9 @@
 # License: MIT
 
 PROG_NAME=dwn
-PROG_VERSION=
-PROG_CMD=dwn # dwn | continue | list | remove
+PROG_VERSION=  # format: 0.0.0
+PROG_CMD=dwn   # dwn | continue | list | remove
+SYS_OS=macos   # macos | linux | windows
 DIR_LIST="$DWN_INSTALL/bin/list"
 
 # Error codes.
@@ -330,16 +331,6 @@ main() {
         ;;
     esac
   done
-
-  log "$PROG_NAME $PROG_CMD"
-  bool $has_opt_a && log '-a'
-  bool $has_opt_c && log '-c'
-  bool $has_opt_f && log '-f'
-  bool $has_opt_h && log '-h'
-  bool $has_opt_i && log '-i'
-  bool $has_opt_i && log '-r'
-  bool $has_opt_o && log "-o: $opt_o"
-  bool $has_opt_v && log '-v'
 
   case "$PROG_CMD" in
     dwn) run_download "$@" ;;
