@@ -1,0 +1,57 @@
+#!/usr/bin/env zsh
+#
+# Uninstall script for dwn utility.
+#
+#
+# Author: Brandon Lepore <https://github.com/fatherbrennan>
+# Date: June 05, 2025
+# License: MIT
+
+# remove config directory.
+unset_config_dir() {
+  INSTALLER_STEP=remove_config_dir
+
+  # check if the directory exists.
+  if [[ -d "$DWN_INSTALL" ]]; then
+    # remove the entire directory.
+    rm -rf "$DWN_INSTALL" && log "removed: $DWN_INSTALL" ||
+      log_error_exit $E_CONFIG_DIR_REMOVE
+  fi
+}
+
+# unset environment variables from zsh.
+unset_env_vars() {
+  INSTALLER_STEP=unset_env_vars
+
+  # check if the file exists.
+  if file_exists "$FILE_ZSHRC"; then
+    local tmp_f_env_vars=$(mktemp)
+    local tmp_f_zshrc=$(mktemp)
+
+    printf "$ENV_VARIABLES_TEXT" >"$tmp_f_env_vars"
+
+    # remove environment variables from file.
+    grep -xvFf "$tmp_f_env_vars" "$FILE_ZSHRC" >"$tmp_f_zshrc" &&
+      mv "$tmp_f_zshrc" "$FILE_ZSHRC"
+  fi
+
+  log 'environment variables unset!'
+}
+
+main() {
+  source ./common
+  INSTALLER_LOG=uninstall
+
+  # make sure to make new variables available.
+  # happens when same shell session was used for install.
+  if [[ ! -v "$DWN_INSTALL" ]]; then
+    source "$FILE_ZSHRC" || log_error_exit $E_ENV_VARS_SOURCE
+  fi
+
+  unset_config_dir
+  unset_env_vars
+
+  return 0
+}
+
+main

@@ -72,7 +72,6 @@ set_os() {
       ;;
     *) log_error_exit $E_SYS_OS_UNKNOWN ;;
   esac
-  log "$SYS_OS"
 }
 
 # `PROG_CMD` whitelist.
