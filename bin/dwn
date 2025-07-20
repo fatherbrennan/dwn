@@ -207,7 +207,7 @@ run_list() {
 
   for item in "$DIR_LIST"/*; do
     if file_exists "$item"; then
-      local id="{$item:t}"
+      local id="${item:t}"
       local output_file=$(get_list_item_output_file "$id")
       local size=$(get_list_item_size "$id")
       local file_size=$(file_exists "$output_file" &&
