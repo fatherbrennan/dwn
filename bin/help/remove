@@ -1,1 +1,15 @@
-remove help
+dwn remove help
+
+alias:
+  remove, rm
+
+example:
+  dwn rm 1a2b3c4d 2b3c4d5c
+  dwn rm -a
+  dwn rm -a -f
+
+options:
+  -a  remove all items from list.
+  -c  remove all items from list with complete downloads.
+  -f  remove local file counterparts if any from specified items.
+  -i  remove all items from list with incomplete downloads.

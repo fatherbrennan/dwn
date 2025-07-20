@@ -124,7 +124,7 @@ create_list_item() {
 # $1 id.
 remove_list_item() {
   ERROR[$E_ITEM_REMOVE_FAILED]="failed to remove item: $1"
-  rm "$DIR_LIST/$id" &&
+  rm "$DIR_LIST/$id" 2>&1 &&
     log "[$id]: removed" ||
       log_error_exit $E_ITEM_REMOVE_FAILED
 }
@@ -145,6 +145,10 @@ get_list_item_url() {
 # $1 id.
 get_list_item_size() {
   head -n 3 "$DIR_LIST/$1" | tail -n 1
+}
+
+get_list_items_count() {
+  printf '%d' "$(ls "$DIR_LIST" | wc -l | tr -d ' ')"
 }
 
 # download list item.
@@ -198,7 +202,7 @@ run_download() {
 
 # list items.
 run_list() {
-  if [[ "$(ls "$DIR_LIST" | wc -l | tr -d ' ')" -eq 0 ]]; then
+  if [[ $(get_list_items_count) -eq 0 ]]; then
     log '0 items' && exit 0
   fi
 
@@ -214,9 +218,7 @@ run_list() {
         cat "$output_file" | wc -c | tr -d ' ' || printf 0)
       local percent=$(printf %.f $(($file_size * 100 / $size)))
 
-      # skip incomplete.
       bool $has_opt_c && [[ "$percent" -ne 100 ]] && continue
-      # skip complete.
       bool $has_opt_i && [[ "$percent" -eq 100 ]] && continue
 
       ((count++))
@@ -231,15 +233,40 @@ run_list() {
 # remove list items.
 # $@ space separated ids.
 run_remove() {
-  for id in "$@"; do
+  local ids="$@"
+
+  # add all item ids.
+  if bool $has_opt_a || bool $has_opt_c || bool $has_opt_i; then
+    if [[ $(get_list_items_count) -gt 0 ]]; then
+      ids=()
+      local items=("$DIR_LIST"/*)
+      for item in "${items[@]}"; do
+        local id="${item:t}"
+        local output_file=$(get_list_item_output_file "$id")
+        local size=$(get_list_item_size "$id")
+        local file_size=$(file_exists "$output_file" &&
+          cat "$output_file" | wc -c | tr -d ' ' || printf 0)
+        local percent=$(printf %.f $(($file_size * 100 / $size)))
+
+        if ! bool $has_opt_a; then
+          bool $has_opt_c && [[ "$percent" -ne 100 ]] && continue
+          bool $has_opt_i && [[ "$percent" -eq 100 ]] && continue
+        fi
+
+        ids+=("$id")
+      done
+    fi
+  fi
+
+  for id in "${ids[@]}"; do
     ! file_exists "$DIR_LIST/$id" && log "[$id]: missing" && continue
 
     # remove the local corresponding file.
     if bool $has_opt_f; then
       local output_file="$(get_list_item_output_file $id)"
-      ERROR[$E_ITEM_REMOVE_LOCAL_FAILED]="[$id:$output_file]: failed to remove"
-      rm "$output_file" &&
-        log "[$id:$output_file]: removed" ||
+      ERROR[$E_ITEM_REMOVE_LOCAL_FAILED]="[$id][$output_file]: failed to remove"
+      rm "$output_file" 2>&1 &&
+        log "[$id][$output_file]: removed" ||
           log_error_exit $E_ITEM_REMOVE_LOCAL_FAILED
     fi
 

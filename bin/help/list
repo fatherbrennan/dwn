@@ -1,1 +1,13 @@
-list help
+dwn list help
+
+alias:
+  list, ls
+
+example:
+  dwn ls
+  dwn ls -c
+  dwn ls -i
+
+options:
+  -c  show complete downloads in list only.
+  -i  show incomplete downloads in list only.

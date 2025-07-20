@@ -1,4 +1,9 @@
 dwn help
 
+example:
+  dwn https://example.com/video.mkv
+  dwn -o local.mkv https://example.com/video.mkv
+
 options:
-  -i item will be ignored from list entirely.
+  -i  item will be ignored from list entirely.
+  -o  relative or absolute file path for output file.

@@ -1,1 +1,8 @@
-continue help
+dwn continue help
+
+example:
+  dwn continue 1a2b3c4d 2b3c4d5c
+  dwn continue -i
+
+options:
+  -i  continue downloading all partially complete items.
