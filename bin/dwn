@@ -63,8 +63,6 @@ print_usage_exit() {
 # set the operating system.
 # error if not supported.
 set_os() {
-  INSTALLER_STEP=os_check
-
   case "$OSTYPE" in
     'darwin'*) SYS_OS=macos ;;
     'linux'*) SYS_OS=linux ;;
@@ -74,11 +72,10 @@ set_os() {
       ;;
     *) log_error_exit $E_SYS_OS_UNKNOWN ;;
   esac
-
   log "$SYS_OS"
 }
 
-# $@
+# `PROG_CMD` whitelist.
 allow_cmd() {
   for cmd in "$@"; do
     [[ "$PROG_CMD" == "$cmd" ]] && return 0
@@ -86,8 +83,9 @@ allow_cmd() {
   return 1
 }
 
-# $1 opt
-# $2 opt value
+# throw error if argument after option is empty.
+# $1 opt.
+# $2 expected opt value.
 enforce_opt() {
   ERROR[$E_CMD_OPT_VAL_REQUIRED]="option is empty with no value: $1"
   [[ -z "$2" ]] && log_error_exit $E_CMD_OPT_VAL_REQUIRED
